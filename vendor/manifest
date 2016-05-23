@@ -1,0 +1,144 @@
+{
+	"version": 0,
+	"dependencies": [
+		{
+			"importpath": "github.com/Bowery/prompt",
+			"repository": "https://github.com/Bowery/prompt",
+			"vcs": "git",
+			"revision": "3a76720709401fd06e29c3105c51f18b9f001108",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/jinzhu/now",
+			"repository": "https://github.com/jinzhu/now",
+			"vcs": "git",
+			"revision": "ce80572eb55aa0ac839330041ca9db1afa5f1f6c",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/labstack/gommon/color",
+			"repository": "https://github.com/labstack/gommon",
+			"vcs": "git",
+			"revision": "b5f03e345acd2096591b6f738cb8d2b9b3231c50",
+			"branch": "master",
+			"path": "/color",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/mattn/go-colorable",
+			"repository": "https://github.com/mattn/go-colorable",
+			"vcs": "git",
+			"revision": "e8a10ddc7d2a7fe255f6fd7f501070a4cb62c183",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/mattn/go-isatty",
+			"repository": "https://github.com/mattn/go-isatty",
+			"vcs": "git",
+			"revision": "56b76bdf51f7708750eac80fa38b952bb9f32639",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/mkideal/cli",
+			"repository": "https://github.com/mkideal/cli",
+			"vcs": "git",
+			"revision": "cab2c87ebb145429edda3110219808a58b0e838d",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/mkideal/pkg/debug",
+			"repository": "https://github.com/mkideal/pkg",
+			"vcs": "git",
+			"revision": "7e611df8fb4522e2e156f606e2e3a3a90d897322",
+			"branch": "master",
+			"path": "debug",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/mkideal/pkg/expr",
+			"repository": "https://github.com/mkideal/pkg",
+			"vcs": "git",
+			"revision": "7e611df8fb4522e2e156f606e2e3a3a90d897322",
+			"branch": "master",
+			"path": "expr",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/mkideal/pkg/version",
+			"repository": "https://github.com/mkideal/pkg",
+			"vcs": "git",
+			"revision": "7e611df8fb4522e2e156f606e2e3a3a90d897322",
+			"branch": "master",
+			"path": "/version",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/stretchr/testify/assert",
+			"repository": "https://github.com/stretchr/testify",
+			"vcs": "git",
+			"revision": "6cb3b85ef5a0efef77caef88363ec4d4b5c0976d",
+			"branch": "master",
+			"path": "/assert",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/stretchr/testify/require",
+			"repository": "https://github.com/stretchr/testify",
+			"vcs": "git",
+			"revision": "6cb3b85ef5a0efef77caef88363ec4d4b5c0976d",
+			"branch": "master",
+			"path": "require",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/stretchr/testify/vendor/github.com/davecgh/go-spew/spew",
+			"repository": "https://github.com/stretchr/testify",
+			"vcs": "git",
+			"revision": "6cb3b85ef5a0efef77caef88363ec4d4b5c0976d",
+			"branch": "master",
+			"path": "vendor/github.com/davecgh/go-spew/spew",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/stretchr/testify/vendor/github.com/pmezard/go-difflib/difflib",
+			"repository": "https://github.com/stretchr/testify",
+			"vcs": "git",
+			"revision": "6cb3b85ef5a0efef77caef88363ec4d4b5c0976d",
+			"branch": "master",
+			"path": "vendor/github.com/pmezard/go-difflib/difflib",
+			"notests": true
+		},
+		{
+			"importpath": "golang.org/x/crypto/bcrypt",
+			"repository": "https://go.googlesource.com/crypto",
+			"vcs": "git",
+			"revision": "5bcd134fee4dd1475da17714aac19c0aa0142e2f",
+			"branch": "master",
+			"path": "/bcrypt",
+			"notests": true
+		},
+		{
+			"importpath": "golang.org/x/crypto/blowfish",
+			"repository": "https://go.googlesource.com/crypto",
+			"vcs": "git",
+			"revision": "5bcd134fee4dd1475da17714aac19c0aa0142e2f",
+			"branch": "master",
+			"path": "blowfish",
+			"notests": true
+		},
+		{
+			"importpath": "golang.org/x/sys/unix",
+			"repository": "https://go.googlesource.com/sys",
+			"vcs": "git",
+			"revision": "d4feaf1a7e61e1d9e79e6c4e76c6349e9cab0a03",
+			"branch": "master",
+			"path": "/unix",
+			"notests": true
+		}
+	]
+}

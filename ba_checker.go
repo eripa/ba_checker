@@ -15,7 +15,11 @@ const toolVersion = "0.0.1"
 var verboseMode = false
 
 type configuration struct {
-	Sites     []string
+	Sites []site
+}
+
+type site struct {
+	Base      string
 	Endpoints map[string]bool
 }
 
@@ -26,13 +30,13 @@ type argT struct {
 	Version bool   `cli:"version" usage:"Check version"`
 }
 
-func checkSites(sites []string, endpoints map[string]bool) error {
+func checkSites(sites []site) error {
 	for _, site := range sites {
 		if verboseMode {
-			log.Printf("Checking site %s\n", site)
+			log.Printf("Checking site %s\n", site.Base)
 		}
-		for endpoint, shouldBe := range endpoints {
-			baEnabled, err := checkEndpoint(site, endpoint, shouldBe)
+		for endpoint, shouldBe := range site.Endpoints {
+			baEnabled, err := checkEndpoint(site.Base, endpoint, shouldBe)
 			if err != nil {
 				return err
 			}
@@ -43,9 +47,9 @@ func checkSites(sites []string, endpoints map[string]bool) error {
 			if !success {
 				message := "ERROR: %s/%s incorrect. Basic Auth Enabled: %t Should be: %t\n"
 				if verboseMode {
-					log.Printf(message, site, endpoint, baEnabled, shouldBe)
+					log.Printf(message, site.Base, endpoint, baEnabled, shouldBe)
 				} else {
-					fmt.Printf(message, site, endpoint, baEnabled, shouldBe)
+					fmt.Printf(message, site.Base, endpoint, baEnabled, shouldBe)
 				}
 			}
 		}
@@ -89,7 +93,7 @@ func main() {
 		if err != nil {
 			fmt.Println("error:", err)
 		}
-		checkSites(config.Sites, config.Endpoints)
+		checkSites(config.Sites)
 		return nil
 	})
 }

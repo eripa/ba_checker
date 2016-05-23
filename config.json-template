@@ -1,25 +1,12 @@
 {
-    "endpoints": {
-      "wp-admin/admin-ajax.php": false,
-      "index.php": false,
-      "wp-admin/edit.php": true,
-      "wp-admin/post.php": true,
-      "wp-admin/post-new.php": true,
-      "wp-admin/install.php": true,
-      "wp-admin/plugins.php": true,
-      "wp-admin/admin.php": true,
-      "wp-admin/async-upload.php": true,
-      "wp-admin/upload.php": true,
-      "wp-admin/user-edit.php": true,
-      "wp-admin/user-new.php": true,
-      "wp-admin/users.php": true,
-      "wp-config.php": true,
-      "wp-cron.php": true,
-      "wp-register.php": true,
-      "wp-settings.php": true,
-      "wp-cron.php": true
-    },
-    "sites": [
-      "https://example.com"
-    ]
+  "sites": [
+    {
+      "base": "https://example.com",
+      "endpoints": {
+        "wp-admin/admin-ajax.php": false,
+        "wp-admin/edit.php": true,
+        "wp-admin/": true
+      }
+    }
+  ]
 }

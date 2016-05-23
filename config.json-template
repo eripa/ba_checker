@@ -3,9 +3,8 @@
     {
       "base": "https://example.com",
       "endpoints": {
-        "wp-admin/admin-ajax.php": false,
-        "wp-admin/edit.php": true,
-        "wp-admin/": true
+        "admin/": true,
+        "/": false
       }
     }
   ]

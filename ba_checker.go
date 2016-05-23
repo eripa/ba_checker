@@ -10,7 +10,7 @@ import (
 	"github.com/mkideal/cli"
 )
 
-const toolVersion = "0.0.1"
+const toolVersion = "0.0.2"
 
 var verboseMode = false
 
@@ -25,7 +25,7 @@ type site struct {
 
 type argT struct {
 	cli.Helper
-	Config  string `cli:"c,config" usage:"JSON config file {\"sites:\" [\"https://www.example.com\"], \"endpoints\": {\"index.php\": false, \"wp-admin/users.php\": true}}"`
+	Config  string `cli:"c,config" usage:"JSON config file, see config.json-template"`
 	Verbose bool   `cli:"v,verbose" usage:"Verbose output"`
 	Version bool   `cli:"version" usage:"Check version"`
 }
@@ -37,19 +37,19 @@ func checkSites(sites []site) error {
 		}
 		for endpoint, shouldBe := range site.Endpoints {
 			baEnabled, err := checkEndpoint(site.Base, endpoint, shouldBe)
+			errorMessage := fmt.Sprintf("ERROR: %s/%s incorrect. Basic Auth Enabled: %t Should be: %t\n", site.Base, endpoint, baEnabled, shouldBe)
 			if err != nil {
-				return err
+				errorMessage = fmt.Sprintf("ERROR: %s/%s unknown. got HTTP Status Code above 400\n", site.Base, endpoint)
 			}
 			if verboseMode {
 				log.Printf("Basic Auth enabled: %t\n", baEnabled)
 			}
 			success := baEnabled == shouldBe
 			if !success {
-				message := "ERROR: %s/%s incorrect. Basic Auth Enabled: %t Should be: %t\n"
 				if verboseMode {
-					log.Printf(message, site.Base, endpoint, baEnabled, shouldBe)
+					log.Printf(errorMessage)
 				} else {
-					fmt.Printf(message, site.Base, endpoint, baEnabled, shouldBe)
+					fmt.Printf(errorMessage)
 				}
 			}
 		}
@@ -63,6 +63,10 @@ func checkEndpoint(site string, endpoint string, shouldBe bool) (bool, error) {
 	}
 	URL := fmt.Sprintf("%s/%s", site, endpoint)
 	resp, err := http.Get(URL)
+	if resp.StatusCode >= 400 {
+		err = fmt.Errorf("Unexpected HTTP Status Code, got: %d", resp.StatusCode)
+		return false, err
+	}
 	baActive := false
 	if resp.Header.Get("Www-Authenticate") != "" {
 		baActive = true

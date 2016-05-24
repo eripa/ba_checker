@@ -35,43 +35,48 @@ func checkSites(sites []site) error {
 		if verboseMode {
 			log.Printf("Checking site %s\n", site.Base)
 		}
-		for endpoint, shouldBe := range site.Endpoints {
-			baEnabled, err := checkEndpoint(site.Base, endpoint, shouldBe)
-			errorMessage := fmt.Sprintf("ERROR: %s/%s incorrect. Basic Auth Enabled: %t Should be: %t\n", site.Base, endpoint, baEnabled, shouldBe)
+		for endpoint, baShouldBe := range site.Endpoints {
+			response, err := checkEndpoint(site.Base, endpoint, baShouldBe)
 			if err != nil {
-				errorMessage = fmt.Sprintf("ERROR: %s/%s unknown. got HTTP Status Code above 400\n", site.Base, endpoint)
+				return err
 			}
-			if verboseMode {
-				log.Printf("Basic Auth enabled: %t\n", baEnabled)
-			}
-			success := baEnabled == shouldBe
-			if !success {
-				if verboseMode {
-					log.Printf(errorMessage)
+			success, baEnabled := checkSuccess(response, baShouldBe)
+			var message string
+
+			if success {
+				message = fmt.Sprintf("OK: %s/%s correct. Basic Auth Enabled: %t Should be: %t\n", site.Base, endpoint, baEnabled, baShouldBe)
+			} else {
+				if response.StatusCode > 401 {
+					message = fmt.Sprintf("ERROR: %s/%s unknown. %s\n", site.Base, endpoint, response.Status)
 				} else {
-					fmt.Printf(errorMessage)
+					message = fmt.Sprintf("ERROR: %s/%s incorrect. Basic Auth Enabled: %t Should be: %t\n", site.Base, endpoint, baEnabled, baShouldBe)
 				}
+			}
+
+			if verboseMode {
+				log.Printf(message)
+			} else {
+				fmt.Printf(message)
 			}
 		}
 	}
 	return nil
 }
 
-func checkEndpoint(site string, endpoint string, shouldBe bool) (bool, error) {
+func checkSuccess(response *http.Response, baShouldBe bool) (success bool, baEnabled bool) {
+	if response.StatusCode == 401 {
+		baEnabled = true
+	}
+	return baEnabled == baShouldBe, response.StatusCode == 401
+}
+
+func checkEndpoint(site string, endpoint string, baShouldBe bool) (*http.Response, error) {
 	if verboseMode {
-		log.Printf("Checking endpoint %v, Basic Auth should be %v\n", endpoint, shouldBe)
+		log.Printf("Checking endpoint %v, Basic Auth should be %v\n", endpoint, baShouldBe)
 	}
 	URL := fmt.Sprintf("%s/%s", site, endpoint)
 	resp, err := http.Get(URL)
-	if resp.StatusCode >= 400 {
-		err = fmt.Errorf("Unexpected HTTP Status Code, got: %d", resp.StatusCode)
-		return false, err
-	}
-	baActive := false
-	if resp.Header.Get("Www-Authenticate") != "" {
-		baActive = true
-	}
-	return baActive, err
+	return resp, err
 }
 
 func main() {
@@ -97,7 +102,10 @@ func main() {
 		if err != nil {
 			fmt.Println("error:", err)
 		}
-		checkSites(config.Sites)
+		err = checkSites(config.Sites)
+		if err != nil {
+			return err
+		}
 		return nil
 	})
 }

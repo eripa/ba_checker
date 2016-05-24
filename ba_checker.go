@@ -11,7 +11,7 @@ import (
 	"github.com/mkideal/cli"
 )
 
-const toolVersion = "0.0.4"
+const toolVersion = "0.1"
 
 var verboseMode = false
 

@@ -10,7 +10,7 @@ import (
 	"github.com/mkideal/cli"
 )
 
-const toolVersion = "0.0.2"
+const toolVersion = "0.0.3"
 
 var verboseMode = false
 

@@ -6,11 +6,12 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/mkideal/cli"
 )
 
-const toolVersion = "0.0.3"
+const toolVersion = "0.0.4"
 
 var verboseMode = false
 
@@ -30,7 +31,26 @@ type argT struct {
 	Version bool   `cli:"version" usage:"Check version"`
 }
 
+func getMaxWidth(sites []site) (width int) {
+	var URL string
+	for _, site := range sites {
+		for endpoint := range site.Endpoints {
+			URL = fmt.Sprintf("%s/%s", site.Base, endpoint)
+			if len(URL) > width {
+				width = len(URL)
+			}
+		}
+	}
+	return width
+}
+
 func checkSites(sites []site) error {
+	maxWidth := getMaxWidth(sites)
+	if !verboseMode {
+		fmt.Printf("%*s | %*s | %*s | HTTP Status\n%s-+-%s-+-%s-+-%s\n", maxWidth, "URL", 10, "Basic Auth",
+			16, "Success", strings.Repeat("-", maxWidth), strings.Repeat("-", 10),
+			strings.Repeat("-", 16), strings.Repeat("-", 80-maxWidth-2))
+	}
 	for _, site := range sites {
 		if verboseMode {
 			log.Printf("Checking site %s\n", site.Base)
@@ -42,19 +62,23 @@ func checkSites(sites []site) error {
 			}
 			success, baEnabled := checkSuccess(response, baShouldBe)
 			var message string
+			var logMessage string
 
 			if success {
-				message = fmt.Sprintf("OK: %s/%s correct. Basic Auth Enabled: %t Should be: %t\n", site.Base, endpoint, baEnabled, baShouldBe)
+				message = fmt.Sprintf("%*s | %*s | %*t | %s\n", maxWidth, fmt.Sprintf("%s/%s", site.Base, endpoint), 10, "yes", 16, success, response.Status)
+				logMessage = fmt.Sprintf("OK: %s/%s correct. Basic Auth Enabled: %t Should be: %t\n", site.Base, endpoint, baEnabled, baShouldBe)
 			} else {
 				if response.StatusCode > 401 {
-					message = fmt.Sprintf("ERROR: %s/%s unknown. %s\n", site.Base, endpoint, response.Status)
+					message = fmt.Sprintf("%*s | %*s | %*t | %s\n", maxWidth, fmt.Sprintf("%s/%s", site.Base, endpoint), 10, "unknown", 16, success, response.Status)
+					logMessage = fmt.Sprintf("ERROR: %s/%s unknown. %s\n", site.Base, endpoint, response.Status)
 				} else {
-					message = fmt.Sprintf("ERROR: %s/%s incorrect. Basic Auth Enabled: %t Should be: %t\n", site.Base, endpoint, baEnabled, baShouldBe)
+					message = fmt.Sprintf("%*s | %*s | %*t | %s\n", maxWidth, fmt.Sprintf("%s/%s", site.Base, endpoint), 10, "no", 16, success, response.Status)
+					logMessage = fmt.Sprintf("ERROR: %s/%s incorrect. Basic Auth Enabled: %t Should be: %t\n", site.Base, endpoint, baEnabled, baShouldBe)
 				}
 			}
 
 			if verboseMode {
-				log.Printf(message)
+				log.Printf(logMessage)
 			} else {
 				fmt.Printf(message)
 			}

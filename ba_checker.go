@@ -55,33 +55,14 @@ func checkSites(sites []site) error {
 		if verboseMode {
 			log.Printf("Checking site %s\n", site.Base)
 		}
+		// channel for synchronizing 'done state', buffer the amount of endpoints
+		done := make(chan bool, len(site.Endpoints))
 		for endpoint, baShouldBe := range site.Endpoints {
-			response, err := checkEndpoint(site.Base, endpoint, baShouldBe)
-			if err != nil {
-				return err
-			}
-			success, baEnabled := checkSuccess(response, baShouldBe)
-			var message string
-			var logMessage string
-
-			if success {
-				message = fmt.Sprintf("%*s | %*s | %*t | %s\n", maxWidth, fmt.Sprintf("%s/%s", site.Base, endpoint), 10, "yes", 16, success, response.Status)
-				logMessage = fmt.Sprintf("OK: %s/%s correct. Basic Auth Enabled: %t Should be: %t\n", site.Base, endpoint, baEnabled, baShouldBe)
-			} else {
-				if response.StatusCode > 401 {
-					message = fmt.Sprintf("%*s | %*s | %*t | %s\n", maxWidth, fmt.Sprintf("%s/%s", site.Base, endpoint), 10, "unknown", 16, success, response.Status)
-					logMessage = fmt.Sprintf("ERROR: %s/%s unknown. %s\n", site.Base, endpoint, response.Status)
-				} else {
-					message = fmt.Sprintf("%*s | %*s | %*t | %s\n", maxWidth, fmt.Sprintf("%s/%s", site.Base, endpoint), 10, "no", 16, success, response.Status)
-					logMessage = fmt.Sprintf("ERROR: %s/%s incorrect. Basic Auth Enabled: %t Should be: %t\n", site.Base, endpoint, baEnabled, baShouldBe)
-				}
-			}
-
-			if verboseMode {
-				log.Printf(logMessage)
-			} else {
-				fmt.Printf(message)
-			}
+			go checkEndpoint(done, &site, endpoint, baShouldBe, maxWidth)
+		}
+		// Drain the channel and wait for all goroutines to complete
+		for i := 0; i < len(site.Endpoints); i++ {
+			<-done // wait for one task to complete
 		}
 	}
 	return nil
@@ -94,7 +75,38 @@ func checkSuccess(response *http.Response, baShouldBe bool) (success bool, baEna
 	return baEnabled == baShouldBe, response.StatusCode == 401
 }
 
-func checkEndpoint(site string, endpoint string, baShouldBe bool) (*http.Response, error) {
+func checkEndpoint(done chan bool, site *site, endpoint string, baShouldBe bool, maxWidth int) error {
+	response, err := getEndpoint(site.Base, endpoint, baShouldBe)
+	if err != nil {
+		return err
+	}
+	success, baEnabled := checkSuccess(response, baShouldBe)
+	var message string
+	var logMessage string
+
+	if success {
+		message = fmt.Sprintf("%*s | %*s | %*t | %s\n", maxWidth, fmt.Sprintf("%s/%s", site.Base, endpoint), 10, "yes", 16, success, response.Status)
+		logMessage = fmt.Sprintf("OK: %s/%s correct. Basic Auth Enabled: %t Should be: %t\n", site.Base, endpoint, baEnabled, baShouldBe)
+	} else {
+		if response.StatusCode > 401 {
+			message = fmt.Sprintf("%*s | %*s | %*t | %s\n", maxWidth, fmt.Sprintf("%s/%s", site.Base, endpoint), 10, "unknown", 16, success, response.Status)
+			logMessage = fmt.Sprintf("ERROR: %s/%s unknown. %s\n", site.Base, endpoint, response.Status)
+		} else {
+			message = fmt.Sprintf("%*s | %*s | %*t | %s\n", maxWidth, fmt.Sprintf("%s/%s", site.Base, endpoint), 10, "no", 16, success, response.Status)
+			logMessage = fmt.Sprintf("ERROR: %s/%s incorrect. Basic Auth Enabled: %t Should be: %t\n", site.Base, endpoint, baEnabled, baShouldBe)
+		}
+	}
+
+	if verboseMode {
+		log.Printf(logMessage)
+	} else {
+		fmt.Printf(message)
+	}
+	done <- true
+	return nil
+}
+
+func getEndpoint(site string, endpoint string, baShouldBe bool) (*http.Response, error) {
 	if verboseMode {
 		log.Printf("Checking endpoint %v, Basic Auth should be %v\n", endpoint, baShouldBe)
 	}

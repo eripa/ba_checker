@@ -40,7 +40,7 @@ type endpoint struct {
 
 type argT struct {
 	cli.Helper
-	Config  string `cli:"c,config" usage:"JSON config file, see config.json-template"`
+	Config  string `cli:"c,config" usage:"JSON config file, see config-example.json"`
 	Version bool   `cli:"version" usage:"Check version"`
 }
 

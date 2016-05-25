@@ -1,0 +1,20 @@
+{
+  "sites": [
+    {
+      "base": "http://test.webdav.org",
+      "endpoints": {
+        "auth-basic": true,
+        "dav":        false,
+        "":           false
+      }
+    },
+    {
+      "base": "https://httpbin.org/",
+      "endpoints": {
+        "basic-auth/:user/:passwd ": true,
+        "html": false,
+        "":     false
+      }
+    }
+  ]
+}

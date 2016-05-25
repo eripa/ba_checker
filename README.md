@@ -16,7 +16,7 @@ If any check results in `false` in the success column, the tool will exit with 1
 
 ## Example run
 
-                                               URL | Basic Auth |  Wanted BA |    Success | HTTP Status
+                                               URL | Basic Auth |  Wanted BA |    Success | HTTP Status
     -----------------------------------------------+------------+------------+------------+---------------------------------
                  http://test.webdav.org/auth-basic |        yes |        yes |       true | 401 Authorization Required
                         http://test.webdav.org/dav |         no |         no |       true | 404 Not Found

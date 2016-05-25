@@ -12,10 +12,9 @@ import (
 	"github.com/mkideal/cli"
 )
 
-const toolVersion = "0.1"
+const toolVersion = "0.3"
 
 var (
-	verboseMode     bool
 	anyLookUpfailed bool
 )
 
@@ -42,7 +41,6 @@ type endpoint struct {
 type argT struct {
 	cli.Helper
 	Config  string `cli:"c,config" usage:"JSON config file, see config.json-template"`
-	Verbose bool   `cli:"v,verbose" usage:"Verbose output"`
 	Version bool   `cli:"version" usage:"Check version"`
 }
 
@@ -95,27 +93,31 @@ func checkSites(sites []site) {
 }
 
 func printResults(site site, maxWidth int) {
-	fmt.Printf("%*s | %*s | %*s | HTTP Status\n%s-+-%s-+-%s-+-%s\n", maxWidth, "URL", 10, "Basic Auth",
-		16, "Success", strings.Repeat("-", maxWidth), strings.Repeat("-", 10),
-		strings.Repeat("-", 16), strings.Repeat("-", 80-maxWidth-2))
+	fmt.Printf("%*s | %*s | %*s | %*s | HTTP Status\n%s-+-%s-+-%s-+-%s-+-%s\n", maxWidth, "URL", 10, "Basic Auth",
+		10, "Wanted BA", 10, "Success", strings.Repeat("-", maxWidth), strings.Repeat("-", 10),
+		strings.Repeat("-", 10), strings.Repeat("-", 10), strings.Repeat("-", 80-maxWidth-2))
 	for _, ep := range site.EndpointsResult {
 		baMessage := "no"
 		if ep.BaEnabled {
 			baMessage = "yes"
 		}
+		baWantedMessage := "no"
+		if ep.BaShouldBe {
+			baWantedMessage = "yes"
+		}
 		if ep.Success {
-			fmt.Printf("%*s | %*s | %*t | %s\n", maxWidth, ep.Endpoint, 10, baMessage, 16, ep.Success, ep.HTTPStatus)
+			fmt.Printf("%*s | %*s | %*s | %*t | %s\n", maxWidth, ep.Endpoint, 10, baMessage, 10, baWantedMessage, 10, ep.Success, ep.HTTPStatus)
 		} else {
 			if ep.HTTPStatusCode > 401 {
-				fmt.Printf("%*s | %*s | %*t | %s\n", maxWidth, ep.Endpoint, 10, baMessage, 16, ep.Success, ep.HTTPStatus)
+				fmt.Printf("%*s | %*s | %*s | %*t | %s\n", maxWidth, ep.Endpoint, 10, baMessage, 10, baWantedMessage, 10, ep.Success, ep.HTTPStatus)
 			} else {
-				fmt.Printf("%*s | %*s | %*t | %s\n", maxWidth, ep.Endpoint, 10, baMessage, 16, ep.Success, ep.HTTPStatus)
+				fmt.Printf("%*s | %*s | %*s | %*t | %s\n", maxWidth, ep.Endpoint, 10, baMessage, 10, baWantedMessage, 10, ep.Success, ep.HTTPStatus)
 			}
 			anyLookUpfailed = true
 		}
 	}
-	fmt.Printf("%s-+-%s-+-%s-+-%s\n", strings.Repeat("-", maxWidth), strings.Repeat("-", 10),
-		strings.Repeat("-", 16), strings.Repeat("-", 80-maxWidth-2))
+	fmt.Printf("%s-+-%s-+-%s-+-%s-+-%s\n", strings.Repeat("-", maxWidth), strings.Repeat("-", 10),
+		strings.Repeat("-", 10), strings.Repeat("-", 10), strings.Repeat("-", 80-maxWidth-2))
 }
 
 func endpointWorker(endpointChan <-chan *endpoint, endpointDone chan bool) {
@@ -164,9 +166,6 @@ func main() {
 		}
 		if argv.Config == "" {
 			return fmt.Errorf("--config <config.json> is required.\n")
-		}
-		if argv.Verbose {
-			verboseMode = true
 		}
 		if _, err := os.Stat(argv.Config); os.IsNotExist(err) {
 			return fmt.Errorf("Error: %s does not exist", argv.Config)

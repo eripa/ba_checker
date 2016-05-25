@@ -13,7 +13,10 @@ import (
 
 const toolVersion = "0.1"
 
-var verboseMode = false
+var (
+	verboseMode     bool
+	anyLookUpfailed bool
+)
 
 type configuration struct {
 	Sites []site
@@ -44,7 +47,7 @@ func getMaxWidth(sites []site) (width int) {
 	return width
 }
 
-func checkSites(sites []site) error {
+func checkSites(sites []site) {
 	maxWidth := getMaxWidth(sites)
 	if !verboseMode {
 		fmt.Printf("%*s | %*s | %*s | HTTP Status\n%s-+-%s-+-%s-+-%s\n", maxWidth, "URL", 10, "Basic Auth",
@@ -52,20 +55,27 @@ func checkSites(sites []site) error {
 			strings.Repeat("-", 16), strings.Repeat("-", 80-maxWidth-2))
 	}
 	for _, site := range sites {
-		if verboseMode {
-			log.Printf("Checking site %s\n", site.Base)
-		}
-		// channel for synchronizing 'done state', buffer the amount of endpoints
-		done := make(chan bool, len(site.Endpoints))
-		for endpoint, baShouldBe := range site.Endpoints {
-			go checkEndpoint(done, &site, endpoint, baShouldBe, maxWidth)
-		}
-		// Drain the channel and wait for all goroutines to complete
-		for i := 0; i < len(site.Endpoints); i++ {
-			<-done // wait for one task to complete
+		checkSite(&site, maxWidth)
+		if !verboseMode {
+			fmt.Printf("%s-+-%s-+-%s-+-%s\n", strings.Repeat("-", maxWidth), strings.Repeat("-", 10),
+				strings.Repeat("-", 16), strings.Repeat("-", 80-maxWidth-2))
 		}
 	}
-	return nil
+}
+
+func checkSite(site *site, maxWidth int) {
+	if verboseMode {
+		log.Printf("Checking site %s\n", site.Base)
+	}
+	// channel for synchronizing 'done state', buffer the amount of endpoints
+	done := make(chan bool, len(site.Endpoints))
+	for endpoint, baShouldBe := range site.Endpoints {
+		go checkEndpoint(done, site, endpoint, baShouldBe, maxWidth)
+	}
+	// Drain the channel and wait for all goroutines to complete
+	for i := 0; i < len(site.Endpoints); i++ {
+		<-done // wait for one task to complete
+	}
 }
 
 func checkSuccess(response *http.Response, baShouldBe bool) (success bool, baEnabled bool) {
@@ -95,6 +105,7 @@ func checkEndpoint(done chan bool, site *site, endpoint string, baShouldBe bool,
 			message = fmt.Sprintf("%*s | %*s | %*t | %s\n", maxWidth, fmt.Sprintf("%s/%s", site.Base, endpoint), 10, "no", 16, success, response.Status)
 			logMessage = fmt.Sprintf("ERROR: %s/%s incorrect. Basic Auth Enabled: %t Should be: %t\n", site.Base, endpoint, baEnabled, baShouldBe)
 		}
+		anyLookUpfailed = true
 	}
 
 	if verboseMode {
@@ -138,9 +149,9 @@ func main() {
 		if err != nil {
 			fmt.Println("error:", err)
 		}
-		err = checkSites(config.Sites)
-		if err != nil {
-			return err
+		checkSites(config.Sites)
+		if anyLookUpfailed {
+			os.Exit(1)
 		}
 		return nil
 	})

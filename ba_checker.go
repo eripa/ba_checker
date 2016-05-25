@@ -3,11 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/mkideal/cli"
 )
 
@@ -23,8 +24,19 @@ type configuration struct {
 }
 
 type site struct {
-	Base      string
-	Endpoints map[string]bool
+	Base            string
+	Endpoints       map[string]bool
+	EndpointsResult []*endpoint
+}
+
+type endpoint struct {
+	BaShouldBe     bool
+	Endpoint       string
+	MaxWidth       int
+	BaEnabled      bool
+	Success        bool
+	HTTPStatus     string
+	HTTPStatusCode int
 }
 
 type argT struct {
@@ -47,34 +59,81 @@ func getMaxWidth(sites []site) (width int) {
 	return width
 }
 
-func checkSites(sites []site) {
-	maxWidth := getMaxWidth(sites)
-	if !verboseMode {
-		fmt.Printf("%*s | %*s | %*s | HTTP Status\n%s-+-%s-+-%s-+-%s\n", maxWidth, "URL", 10, "Basic Auth",
-			16, "Success", strings.Repeat("-", maxWidth), strings.Repeat("-", 10),
-			strings.Repeat("-", 16), strings.Repeat("-", 80-maxWidth-2))
-	}
+func numberOfTotalEndpoints(sites []site) (count int) {
 	for _, site := range sites {
-		checkSite(&site, maxWidth)
-		if !verboseMode {
-			fmt.Printf("%s-+-%s-+-%s-+-%s\n", strings.Repeat("-", maxWidth), strings.Repeat("-", 10),
-				strings.Repeat("-", 16), strings.Repeat("-", 80-maxWidth-2))
-		}
+		count += len(site.Endpoints)
+	}
+	return count
+}
+
+func checkSites(sites []site) {
+	amountOfEndpoints := numberOfTotalEndpoints(sites)
+	endpointChan := make(chan *endpoint, amountOfEndpoints)
+	endpointDone := make(chan bool, amountOfEndpoints)
+	defer close(endpointChan)
+	defer close(endpointDone)
+	for i := 0; i < 30; i++ {
+		go endpointWorker(endpointChan, endpointDone)
+	}
+
+	maxWidth := getMaxWidth(sites)
+	s := spinner.New(spinner.CharSets[7], 100*time.Millisecond)
+	s.Prefix = "running tests"
+	s.Start()
+
+	for i := range sites {
+		checkSite(&sites[i], endpointChan)
+	}
+	// Wait for all endpoints to be done
+	for i := 0; i < amountOfEndpoints; i++ {
+		<-endpointDone // wait for one task to complete
+	}
+	s.Stop()
+	for _, site := range sites {
+		printResults(site, maxWidth)
 	}
 }
 
-func checkSite(site *site, maxWidth int) {
-	if verboseMode {
-		log.Printf("Checking site %s\n", site.Base)
+func printResults(site site, maxWidth int) {
+	fmt.Printf("%*s | %*s | %*s | HTTP Status\n%s-+-%s-+-%s-+-%s\n", maxWidth, "URL", 10, "Basic Auth",
+		16, "Success", strings.Repeat("-", maxWidth), strings.Repeat("-", 10),
+		strings.Repeat("-", 16), strings.Repeat("-", 80-maxWidth-2))
+	for _, ep := range site.EndpointsResult {
+		baMessage := "no"
+		if ep.BaEnabled {
+			baMessage = "yes"
+		}
+		if ep.Success {
+			fmt.Printf("%*s | %*s | %*t | %s\n", maxWidth, ep.Endpoint, 10, baMessage, 16, ep.Success, ep.HTTPStatus)
+		} else {
+			if ep.HTTPStatusCode > 401 {
+				fmt.Printf("%*s | %*s | %*t | %s\n", maxWidth, ep.Endpoint, 10, baMessage, 16, ep.Success, ep.HTTPStatus)
+			} else {
+				fmt.Printf("%*s | %*s | %*t | %s\n", maxWidth, ep.Endpoint, 10, baMessage, 16, ep.Success, ep.HTTPStatus)
+			}
+			anyLookUpfailed = true
+		}
 	}
-	// channel for synchronizing 'done state', buffer the amount of endpoints
-	done := make(chan bool, len(site.Endpoints))
-	for endpoint, baShouldBe := range site.Endpoints {
-		go checkEndpoint(done, site, endpoint, baShouldBe, maxWidth)
+	fmt.Printf("%s-+-%s-+-%s-+-%s\n", strings.Repeat("-", maxWidth), strings.Repeat("-", 10),
+		strings.Repeat("-", 16), strings.Repeat("-", 80-maxWidth-2))
+}
+
+func endpointWorker(endpointChan <-chan *endpoint, endpointDone chan bool) {
+	for ep := range endpointChan {
+		checkEndpoint(ep)
+		endpointDone <- true
 	}
-	// Drain the channel and wait for all goroutines to complete
-	for i := 0; i < len(site.Endpoints); i++ {
-		<-done // wait for one task to complete
+}
+
+func checkSite(site *site, endpointChan chan *endpoint) {
+	for ep, baShouldBe := range site.Endpoints {
+		epType := endpoint{
+			BaShouldBe: baShouldBe,
+			Endpoint:   fmt.Sprintf("%s/%s", site.Base, ep),
+		}
+
+		site.EndpointsResult = append(site.EndpointsResult, &epType)
+		endpointChan <- &epType
 	}
 }
 
@@ -82,47 +141,18 @@ func checkSuccess(response *http.Response, baShouldBe bool) (success bool, baEna
 	if response.StatusCode == 401 {
 		baEnabled = true
 	}
-	return baEnabled == baShouldBe, response.StatusCode == 401
+	return baEnabled == baShouldBe, baEnabled
 }
 
-func checkEndpoint(done chan bool, site *site, endpoint string, baShouldBe bool, maxWidth int) (success bool, err error) {
-	response, err := getEndpoint(fmt.Sprintf("%s/%s", site.Base, endpoint), baShouldBe)
+func checkEndpoint(ep *endpoint) {
+	response, err := http.Get(ep.Endpoint)
 	if err != nil {
-		return false, err
+		ep.Success = false
+		ep.BaEnabled = false
 	}
-	success, baEnabled := checkSuccess(response, baShouldBe)
-	var message string
-	var logMessage string
-
-	if success {
-		message = fmt.Sprintf("%*s | %*s | %*t | %s\n", maxWidth, fmt.Sprintf("%s/%s", site.Base, endpoint), 10, "yes", 16, success, response.Status)
-		logMessage = fmt.Sprintf("OK: %s/%s correct. Basic Auth Enabled: %t Should be: %t\n", site.Base, endpoint, baEnabled, baShouldBe)
-	} else {
-		if response.StatusCode > 401 {
-			message = fmt.Sprintf("%*s | %*s | %*t | %s\n", maxWidth, fmt.Sprintf("%s/%s", site.Base, endpoint), 10, "unknown", 16, success, response.Status)
-			logMessage = fmt.Sprintf("ERROR: %s/%s unknown. %s\n", site.Base, endpoint, response.Status)
-		} else {
-			message = fmt.Sprintf("%*s | %*s | %*t | %s\n", maxWidth, fmt.Sprintf("%s/%s", site.Base, endpoint), 10, "no", 16, success, response.Status)
-			logMessage = fmt.Sprintf("ERROR: %s/%s incorrect. Basic Auth Enabled: %t Should be: %t\n", site.Base, endpoint, baEnabled, baShouldBe)
-		}
-		anyLookUpfailed = true
-	}
-
-	if verboseMode {
-		log.Printf(logMessage)
-	} else {
-		fmt.Printf(message)
-	}
-	done <- true
-	return success, err
-}
-
-func getEndpoint(URL string, baShouldBe bool) (*http.Response, error) {
-	if verboseMode {
-		log.Printf("Checking endpoint %v, Basic Auth should be %v\n", URL, baShouldBe)
-	}
-	resp, err := http.Get(URL)
-	return resp, err
+	ep.HTTPStatusCode = response.StatusCode
+	ep.HTTPStatus = response.Status
+	ep.Success, ep.BaEnabled = checkSuccess(response, ep.BaShouldBe)
 }
 
 func main() {

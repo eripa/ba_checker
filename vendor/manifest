@@ -10,6 +10,22 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/briandowns/spinner",
+			"repository": "https://github.com/briandowns/spinner",
+			"vcs": "git",
+			"revision": "f4193f332207b8229aab642269c297cab1df1015",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/fatih/color",
+			"repository": "https://github.com/fatih/color",
+			"vcs": "git",
+			"revision": "533cd7fd8a85905f67a1753afb4deddc85ea174f",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/jinzhu/now",
 			"repository": "https://github.com/jinzhu/now",
 			"vcs": "git",

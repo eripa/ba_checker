@@ -85,10 +85,10 @@ func checkSuccess(response *http.Response, baShouldBe bool) (success bool, baEna
 	return baEnabled == baShouldBe, response.StatusCode == 401
 }
 
-func checkEndpoint(done chan bool, site *site, endpoint string, baShouldBe bool, maxWidth int) error {
-	response, err := getEndpoint(site.Base, endpoint, baShouldBe)
+func checkEndpoint(done chan bool, site *site, endpoint string, baShouldBe bool, maxWidth int) (success bool, err error) {
+	response, err := getEndpoint(fmt.Sprintf("%s/%s", site.Base, endpoint), baShouldBe)
 	if err != nil {
-		return err
+		return false, err
 	}
 	success, baEnabled := checkSuccess(response, baShouldBe)
 	var message string
@@ -114,14 +114,13 @@ func checkEndpoint(done chan bool, site *site, endpoint string, baShouldBe bool,
 		fmt.Printf(message)
 	}
 	done <- true
-	return nil
+	return success, err
 }
 
-func getEndpoint(site string, endpoint string, baShouldBe bool) (*http.Response, error) {
+func getEndpoint(URL string, baShouldBe bool) (*http.Response, error) {
 	if verboseMode {
-		log.Printf("Checking endpoint %v, Basic Auth should be %v\n", endpoint, baShouldBe)
+		log.Printf("Checking endpoint %v, Basic Auth should be %v\n", URL, baShouldBe)
 	}
-	URL := fmt.Sprintf("%s/%s", site, endpoint)
 	resp, err := http.Get(URL)
 	return resp, err
 }

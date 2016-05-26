@@ -13,7 +13,7 @@ import (
 	"github.com/mkideal/cli"
 )
 
-const toolVersion = "0.4"
+const toolVersion = "0.5"
 
 var (
 	anyLookUpfailed bool
@@ -158,6 +158,7 @@ func checkEndpoint(ep *endpoint) {
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", ep.Endpoint, nil)
 	req.Header.Add("Cache-Control", "no-cache")
+	req.Header.Set("User-Agent", fmt.Sprintf("ba_checker v%s", toolVersion))
 	response, err := client.Do(req)
 
 	if err != nil {

@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/briandowns/spinner"
-	"github.com/mkideal/cli"
+	"github.com/jawher/mow.cli"
 )
 
-const toolVersion = "0.6"
+const toolVersion = "v0.7-pre"
 
 var (
 	anyLookUpfailed bool
@@ -44,13 +44,6 @@ type endpointSorter []*endpoint
 func (a endpointSorter) Len() int           { return len(a) }
 func (a endpointSorter) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a endpointSorter) Less(i, j int) bool { return a[i].Endpoint < a[j].Endpoint }
-
-type argT struct {
-	cli.Helper
-	Config    string `cli:"c,config" usage:"JSON config file, see config-example.json"`
-	NoSpinner bool   `cli:"no-spinner" usage:"Disable spinner animation for cleaner output"`
-	Version   bool   `cli:"version" usage:"Check version"`
-}
 
 func getMaxWidth(sites []site) (width int) {
 	var URL string
@@ -163,7 +156,7 @@ func checkEndpoint(ep *endpoint) {
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", ep.Endpoint, nil)
 	req.Header.Add("Cache-Control", "no-cache")
-	req.Header.Set("User-Agent", fmt.Sprintf("ba_checker v%s", toolVersion))
+	req.Header.Set("User-Agent", fmt.Sprintf("ba_checker %s", toolVersion))
 	response, err := client.Do(req)
 
 	if err != nil {
@@ -176,29 +169,32 @@ func checkEndpoint(ep *endpoint) {
 }
 
 func main() {
-	cli.Run(&argT{}, func(ctx *cli.Context) error {
-		argv := ctx.Argv().(*argT)
-		if argv.Version {
-			ctx.String("ba_checker v%s\n", toolVersion)
-			return nil
+	app := cli.App("ba_checker", "Check HTTP Basic Auth status")
+	app.Version("v version", toolVersion)
+	app.Spec = "[--no-spinner] CONFIGFILE"
+
+	var (
+		noSpinner  = app.BoolOpt("n no-spinner", false, "Disable spinner animation")
+		configFile = app.StringArg("CONFIGFILE", "", "Config file")
+	)
+
+	app.Action = func() {
+		if _, err := os.Stat(*configFile); os.IsNotExist(err) {
+			fmt.Printf("Error: Given config file %s does not exist, exiting..\n", *configFile)
+			cli.Exit(1)
 		}
-		if len(os.Args) < 2 {
-			return fmt.Errorf("<config.json> is required.\n")
-		}
-		if _, err := os.Stat(os.Args[1]); os.IsNotExist(err) {
-			return fmt.Errorf("Error: %s does not exist", os.Args[1])
-		}
-		file, _ := os.Open(os.Args[1])
+		file, _ := os.Open(*configFile)
 		decoder := json.NewDecoder(file)
 		config := configuration{}
 		err := decoder.Decode(&config)
 		if err != nil {
 			fmt.Println("error:", err)
 		}
-		checkSites(config.Sites, argv.NoSpinner)
+		checkSites(config.Sites, *noSpinner)
 		if anyLookUpfailed {
-			os.Exit(1)
+			cli.Exit(1)
 		}
-		return nil
-	})
+	}
+
+	app.Run(os.Args)
 }

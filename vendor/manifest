@@ -26,6 +26,14 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/jawher/mow.cli",
+			"repository": "https://github.com/jawher/mow.cli",
+			"vcs": "git",
+			"revision": "772320464101e904cd51198160eb4d489be9cc49",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/jinzhu/now",
 			"repository": "https://github.com/jinzhu/now",
 			"vcs": "git",
@@ -55,14 +63,6 @@
 			"repository": "https://github.com/mattn/go-isatty",
 			"vcs": "git",
 			"revision": "56b76bdf51f7708750eac80fa38b952bb9f32639",
-			"branch": "master",
-			"notests": true
-		},
-		{
-			"importpath": "github.com/mkideal/cli",
-			"repository": "https://github.com/mkideal/cli",
-			"vcs": "git",
-			"revision": "cab2c87ebb145429edda3110219808a58b0e838d",
 			"branch": "master",
 			"notests": true
 		},

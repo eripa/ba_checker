@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -37,6 +38,12 @@ type endpoint struct {
 	HTTPStatus     string
 	HTTPStatusCode int
 }
+
+type endpointSorter []*endpoint
+
+func (a endpointSorter) Len() int           { return len(a) }
+func (a endpointSorter) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a endpointSorter) Less(i, j int) bool { return a[i].Endpoint < a[j].Endpoint }
 
 type argT struct {
 	cli.Helper
@@ -96,6 +103,7 @@ func printResults(site site, maxWidth int) {
 	fmt.Printf("%*s | %*s | %*s | %*s | HTTP Status\n%s-+-%s-+-%s-+-%s-+-%s\n", maxWidth, "URL", 10, "Basic Auth",
 		10, "Wanted BA", 10, "Success", strings.Repeat("-", maxWidth), strings.Repeat("-", 10),
 		strings.Repeat("-", 10), strings.Repeat("-", 10), strings.Repeat("-", 90-maxWidth-2))
+	sort.Sort(endpointSorter(site.EndpointsResult))
 	for _, ep := range site.EndpointsResult {
 		baMessage := "no"
 		if ep.BaEnabled {

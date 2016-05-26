@@ -12,7 +12,7 @@ import (
 	"github.com/mkideal/cli"
 )
 
-const toolVersion = "0.3"
+const toolVersion = "0.4"
 
 var (
 	anyLookUpfailed bool
@@ -95,7 +95,7 @@ func checkSites(sites []site) {
 func printResults(site site, maxWidth int) {
 	fmt.Printf("%*s | %*s | %*s | %*s | HTTP Status\n%s-+-%s-+-%s-+-%s-+-%s\n", maxWidth, "URL", 10, "Basic Auth",
 		10, "Wanted BA", 10, "Success", strings.Repeat("-", maxWidth), strings.Repeat("-", 10),
-		strings.Repeat("-", 10), strings.Repeat("-", 10), strings.Repeat("-", 80-maxWidth-2))
+		strings.Repeat("-", 10), strings.Repeat("-", 10), strings.Repeat("-", 90-maxWidth-2))
 	for _, ep := range site.EndpointsResult {
 		baMessage := "no"
 		if ep.BaEnabled {
@@ -117,7 +117,7 @@ func printResults(site site, maxWidth int) {
 		}
 	}
 	fmt.Printf("%s-+-%s-+-%s-+-%s-+-%s\n", strings.Repeat("-", maxWidth), strings.Repeat("-", 10),
-		strings.Repeat("-", 10), strings.Repeat("-", 10), strings.Repeat("-", 80-maxWidth-2))
+		strings.Repeat("-", 10), strings.Repeat("-", 10), strings.Repeat("-", 90-maxWidth-2))
 }
 
 func endpointWorker(endpointChan <-chan *endpoint, endpointDone chan bool) {
@@ -147,7 +147,12 @@ func checkSuccess(response *http.Response, baShouldBe bool) (success bool, baEna
 }
 
 func checkEndpoint(ep *endpoint) {
-	response, err := http.Get(ep.Endpoint)
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", ep.Endpoint, nil)
+	req.Header.Add("Cache-Control", "no-cache")
+	fmt.Println(req)
+	response, err := client.Do(req)
+
 	if err != nil {
 		ep.Success = false
 		ep.BaEnabled = false

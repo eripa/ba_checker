@@ -13,7 +13,7 @@ import (
 	"github.com/mkideal/cli"
 )
 
-const toolVersion = "0.5"
+const toolVersion = "0.6"
 
 var (
 	anyLookUpfailed bool
@@ -47,8 +47,9 @@ func (a endpointSorter) Less(i, j int) bool { return a[i].Endpoint < a[j].Endpoi
 
 type argT struct {
 	cli.Helper
-	Config  string `cli:"c,config" usage:"JSON config file, see config-example.json"`
-	Version bool   `cli:"version" usage:"Check version"`
+	Config    string `cli:"c,config" usage:"JSON config file, see config-example.json"`
+	NoSpinner bool   `cli:"no-spinner" usage:"Disable spinner animation for cleaner output"`
+	Version   bool   `cli:"version" usage:"Check version"`
 }
 
 func getMaxWidth(sites []site) (width int) {
@@ -71,7 +72,7 @@ func numberOfTotalEndpoints(sites []site) (count int) {
 	return count
 }
 
-func checkSites(sites []site) {
+func checkSites(sites []site, nospinner bool) {
 	amountOfEndpoints := numberOfTotalEndpoints(sites)
 	endpointChan := make(chan *endpoint, amountOfEndpoints)
 	endpointDone := make(chan bool, amountOfEndpoints)
@@ -83,8 +84,10 @@ func checkSites(sites []site) {
 
 	maxWidth := getMaxWidth(sites)
 	s := spinner.New(spinner.CharSets[7], 100*time.Millisecond)
-	s.Prefix = "running tests"
-	s.Start()
+	if !nospinner {
+		s.Prefix = "running tests"
+		s.Start()
+	}
 
 	for i := range sites {
 		checkSite(&sites[i], endpointChan)
@@ -93,7 +96,9 @@ func checkSites(sites []site) {
 	for i := 0; i < amountOfEndpoints; i++ {
 		<-endpointDone // wait for one task to complete
 	}
-	s.Stop()
+	if !nospinner {
+		s.Stop()
+	}
 	for _, site := range sites {
 		printResults(site, maxWidth)
 	}
@@ -177,20 +182,20 @@ func main() {
 			ctx.String("ba_checker v%s\n", toolVersion)
 			return nil
 		}
-		if argv.Config == "" {
-			return fmt.Errorf("--config <config.json> is required.\n")
+		if len(os.Args) < 2 {
+			return fmt.Errorf("<config.json> is required.\n")
 		}
-		if _, err := os.Stat(argv.Config); os.IsNotExist(err) {
-			return fmt.Errorf("Error: %s does not exist", argv.Config)
+		if _, err := os.Stat(os.Args[1]); os.IsNotExist(err) {
+			return fmt.Errorf("Error: %s does not exist", os.Args[1])
 		}
-		file, _ := os.Open(argv.Config)
+		file, _ := os.Open(os.Args[1])
 		decoder := json.NewDecoder(file)
 		config := configuration{}
 		err := decoder.Decode(&config)
 		if err != nil {
 			fmt.Println("error:", err)
 		}
-		checkSites(config.Sites)
+		checkSites(config.Sites, argv.NoSpinner)
 		if anyLookUpfailed {
 			os.Exit(1)
 		}

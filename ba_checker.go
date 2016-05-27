@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -9,47 +8,47 @@ import (
 	"strings"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/briandowns/spinner"
 	"github.com/jawher/mow.cli"
 )
 
-const toolVersion = "v0.7-pre"
+const toolVersion = "v0.7"
 
 var (
 	anyLookUpfailed bool
 )
 
 type configuration struct {
-	Sites []site
+	Sites []site `toml:"site"`
 }
-
 type site struct {
-	Base            string
-	Endpoints       map[string]bool
-	EndpointsResult []*endpoint
+	Base        string   `toml:"base"`
+	BasicAuth   []string `toml:"auth"`
+	NoBasicAuth []string `toml:"no_auth"`
+	endpoints   []endpoint
 }
 
 type endpoint struct {
 	BaShouldBe     bool
-	Endpoint       string
-	MaxWidth       int
+	URL            string
 	BaEnabled      bool
 	Success        bool
 	HTTPStatus     string
 	HTTPStatusCode int
 }
 
-type endpointSorter []*endpoint
+type endpointSorter []endpoint
 
 func (a endpointSorter) Len() int           { return len(a) }
 func (a endpointSorter) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a endpointSorter) Less(i, j int) bool { return a[i].Endpoint < a[j].Endpoint }
+func (a endpointSorter) Less(i, j int) bool { return a[i].URL < a[j].URL }
 
 func getMaxWidth(sites []site) (width int) {
 	var URL string
 	for _, site := range sites {
-		for endpoint := range site.Endpoints {
-			URL = fmt.Sprintf("%s/%s", site.Base, endpoint)
+		for _, ep := range site.endpoints {
+			URL = fmt.Sprintf("%s/%s", site.Base, ep.URL)
 			if len(URL) > width {
 				width = len(URL)
 			}
@@ -58,17 +57,17 @@ func getMaxWidth(sites []site) (width int) {
 	return width
 }
 
-func numberOfTotalEndpoints(sites []site) (count int) {
+func numberOfTotalURLs(sites []site) (count int) {
 	for _, site := range sites {
-		count += len(site.Endpoints)
+		count += len(site.endpoints)
 	}
 	return count
 }
 
 func checkSites(sites []site, nospinner bool) {
-	amountOfEndpoints := numberOfTotalEndpoints(sites)
-	endpointChan := make(chan *endpoint, amountOfEndpoints)
-	endpointDone := make(chan bool, amountOfEndpoints)
+	amountOfURLs := numberOfTotalURLs(sites)
+	endpointChan := make(chan *endpoint, amountOfURLs)
+	endpointDone := make(chan bool, amountOfURLs)
 	defer close(endpointChan)
 	defer close(endpointDone)
 	for i := 0; i < 30; i++ {
@@ -86,7 +85,7 @@ func checkSites(sites []site, nospinner bool) {
 		checkSite(&sites[i], endpointChan)
 	}
 	// Wait for all endpoints to be done
-	for i := 0; i < amountOfEndpoints; i++ {
+	for i := 0; i < amountOfURLs; i++ {
 		<-endpointDone // wait for one task to complete
 	}
 	if !nospinner {
@@ -101,8 +100,8 @@ func printResults(site site, maxWidth int) {
 	fmt.Printf("%*s | %*s | %*s | %*s | HTTP Status\n%s-+-%s-+-%s-+-%s-+-%s\n", maxWidth, "URL", 10, "Basic Auth",
 		10, "Wanted BA", 10, "Success", strings.Repeat("-", maxWidth), strings.Repeat("-", 10),
 		strings.Repeat("-", 10), strings.Repeat("-", 10), strings.Repeat("-", 90-maxWidth-2))
-	sort.Sort(endpointSorter(site.EndpointsResult))
-	for _, ep := range site.EndpointsResult {
+	sort.Sort(endpointSorter(site.endpoints))
+	for _, ep := range site.endpoints {
 		baMessage := "no"
 		if ep.BaEnabled {
 			baMessage = "yes"
@@ -112,12 +111,12 @@ func printResults(site site, maxWidth int) {
 			baWantedMessage = "yes"
 		}
 		if ep.Success {
-			fmt.Printf("%*s | %*s | %*s | %*t | %s\n", maxWidth, ep.Endpoint, 10, baMessage, 10, baWantedMessage, 10, ep.Success, ep.HTTPStatus)
+			fmt.Printf("%*s | %*s | %*s | %*t | %s\n", maxWidth, ep.URL, 10, baMessage, 10, baWantedMessage, 10, ep.Success, ep.HTTPStatus)
 		} else {
 			if ep.HTTPStatusCode > 401 {
-				fmt.Printf("%*s | %*s | %*s | %*t | %s\n", maxWidth, ep.Endpoint, 10, baMessage, 10, baWantedMessage, 10, ep.Success, ep.HTTPStatus)
+				fmt.Printf("%*s | %*s | %*s | %*t | %s\n", maxWidth, ep.URL, 10, baMessage, 10, baWantedMessage, 10, ep.Success, ep.HTTPStatus)
 			} else {
-				fmt.Printf("%*s | %*s | %*s | %*t | %s\n", maxWidth, ep.Endpoint, 10, baMessage, 10, baWantedMessage, 10, ep.Success, ep.HTTPStatus)
+				fmt.Printf("%*s | %*s | %*s | %*t | %s\n", maxWidth, ep.URL, 10, baMessage, 10, baWantedMessage, 10, ep.Success, ep.HTTPStatus)
 			}
 			anyLookUpfailed = true
 		}
@@ -128,20 +127,14 @@ func printResults(site site, maxWidth int) {
 
 func endpointWorker(endpointChan <-chan *endpoint, endpointDone chan bool) {
 	for ep := range endpointChan {
-		checkEndpoint(ep)
+		checkURL(ep)
 		endpointDone <- true
 	}
 }
 
 func checkSite(site *site, endpointChan chan *endpoint) {
-	for ep, baShouldBe := range site.Endpoints {
-		epType := endpoint{
-			BaShouldBe: baShouldBe,
-			Endpoint:   fmt.Sprintf("%s/%s", site.Base, ep),
-		}
-
-		site.EndpointsResult = append(site.EndpointsResult, &epType)
-		endpointChan <- &epType
+	for index := range site.endpoints {
+		endpointChan <- &site.endpoints[index]
 	}
 }
 
@@ -152,9 +145,9 @@ func checkSuccess(response *http.Response, baShouldBe bool) (success bool, baEna
 	return baEnabled == baShouldBe, baEnabled
 }
 
-func checkEndpoint(ep *endpoint) {
+func checkURL(ep *endpoint) {
 	client := &http.Client{}
-	req, err := http.NewRequest("GET", ep.Endpoint, nil)
+	req, err := http.NewRequest("GET", ep.URL, nil)
 	req.Header.Add("Cache-Control", "no-cache")
 	req.Header.Set("User-Agent", fmt.Sprintf("ba_checker %s", toolVersion))
 	response, err := client.Do(req)
@@ -168,6 +161,25 @@ func checkEndpoint(ep *endpoint) {
 	ep.Success, ep.BaEnabled = checkSuccess(response, ep.BaShouldBe)
 }
 
+func populateURLConfig(config *configuration) {
+	for index := range config.Sites {
+		for _, baURL := range config.Sites[index].BasicAuth {
+			config.Sites[index].endpoints = append(config.Sites[index].endpoints,
+				endpoint{
+					BaShouldBe: true,
+					URL:        fmt.Sprintf("%s/%s", config.Sites[index].Base, baURL),
+				})
+		}
+		for _, URL := range config.Sites[index].NoBasicAuth {
+			config.Sites[index].endpoints = append(config.Sites[index].endpoints,
+				endpoint{
+					BaShouldBe: false,
+					URL:        fmt.Sprintf("%s/%s", config.Sites[index].Base, URL),
+				})
+		}
+	}
+}
+
 func main() {
 	app := cli.App("ba_checker", "Check HTTP Basic Auth status")
 	app.Version("v version", toolVersion)
@@ -179,17 +191,16 @@ func main() {
 	)
 
 	app.Action = func() {
+		var config configuration
 		if _, err := os.Stat(*configFile); os.IsNotExist(err) {
 			fmt.Printf("Error: Given config file %s does not exist, exiting..\n", *configFile)
 			cli.Exit(1)
 		}
-		file, _ := os.Open(*configFile)
-		decoder := json.NewDecoder(file)
-		config := configuration{}
-		err := decoder.Decode(&config)
-		if err != nil {
-			fmt.Println("error:", err)
+		if _, err := toml.DecodeFile(*configFile, &config); err != nil {
+			fmt.Println("Error:", err)
+			cli.Exit(1)
 		}
+		populateURLConfig(&config)
 		checkSites(config.Sites, *noSpinner)
 		if anyLookUpfailed {
 			cli.Exit(1)

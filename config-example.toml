@@ -1,0 +1,14 @@
+[[site]]
+base = "https://httpbin.org"
+auth = ["basic-auth/:user/:passwd"]
+no_auth = ["html", ""]
+
+[[site]]
+base = "http://test.webdav.org"
+auth = [
+  "auth-basic"
+]
+no_auth = [
+  "dav",
+  ""
+]

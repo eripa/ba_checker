@@ -10,6 +10,14 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/BurntSushi/toml",
+			"repository": "https://github.com/BurntSushi/toml",
+			"vcs": "git",
+			"revision": "f0aeabca5a127c4078abb8c8d64298b147264b55",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/briandowns/spinner",
 			"repository": "https://github.com/briandowns/spinner",
 			"vcs": "git",
@@ -97,7 +105,7 @@
 			"importpath": "github.com/stretchr/testify/assert",
 			"repository": "https://github.com/stretchr/testify",
 			"vcs": "git",
-			"revision": "6cb3b85ef5a0efef77caef88363ec4d4b5c0976d",
+			"revision": "8d64eb7173c7753d6419fd4a9caf057398611364",
 			"branch": "master",
 			"path": "/assert",
 			"notests": true
@@ -106,7 +114,7 @@
 			"importpath": "github.com/stretchr/testify/require",
 			"repository": "https://github.com/stretchr/testify",
 			"vcs": "git",
-			"revision": "6cb3b85ef5a0efef77caef88363ec4d4b5c0976d",
+			"revision": "8d64eb7173c7753d6419fd4a9caf057398611364",
 			"branch": "master",
 			"path": "require",
 			"notests": true
@@ -115,7 +123,7 @@
 			"importpath": "github.com/stretchr/testify/vendor/github.com/davecgh/go-spew/spew",
 			"repository": "https://github.com/stretchr/testify",
 			"vcs": "git",
-			"revision": "6cb3b85ef5a0efef77caef88363ec4d4b5c0976d",
+			"revision": "8d64eb7173c7753d6419fd4a9caf057398611364",
 			"branch": "master",
 			"path": "vendor/github.com/davecgh/go-spew/spew",
 			"notests": true
@@ -124,7 +132,7 @@
 			"importpath": "github.com/stretchr/testify/vendor/github.com/pmezard/go-difflib/difflib",
 			"repository": "https://github.com/stretchr/testify",
 			"vcs": "git",
-			"revision": "6cb3b85ef5a0efef77caef88363ec4d4b5c0976d",
+			"revision": "8d64eb7173c7753d6419fd4a9caf057398611364",
 			"branch": "master",
 			"path": "vendor/github.com/pmezard/go-difflib/difflib",
 			"notests": true

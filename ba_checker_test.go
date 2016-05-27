@@ -16,20 +16,14 @@ type testCase struct {
 func getTestSites() []site {
 	sites := []site{
 		site{
-			Base: "http://test.webdav.org",
-			Endpoints: map[string]bool{
-				"auth-basic": true,
-				"dav":        false,
-				"":           false,
-			},
+			Base:        "http://test.webdav.org",
+			BasicAuth:   []string{"auth-basic"},
+			NoBasicAuth: []string{"dav", ""},
 		},
 		site{
-			Base: "https://httpbin.org/",
-			Endpoints: map[string]bool{
-				"basic-auth/:user/:passwd ": true,
-				"html": false,
-				"":     false,
-			},
+			Base:        "https://httpbin.org/",
+			BasicAuth:   []string{"basic-auth/:user/:passwd"},
+			NoBasicAuth: []string{"html", ""},
 		},
 	}
 	return sites
@@ -38,33 +32,32 @@ func getTestSites() []site {
 func TestCheckSuccess(t *testing.T) {
 	sites := getTestSites()
 	for _, site := range sites {
-		for _, baShouldBe := range site.Endpoints {
+		for _, ep := range site.endpoints {
 			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if baShouldBe {
+				if ep.BaShouldBe {
 					w.WriteHeader(http.StatusUnauthorized)
 				} else {
 					w.WriteHeader(http.StatusOK)
 				}
 			}))
 			response, _ := http.Get(ts.URL)
-			success, baEnabled := checkSuccess(response, baShouldBe)
-			if !success {
+			ep.Success, ep.BaEnabled = checkSuccess(response, ep.BaShouldBe)
+			if !ep.Success {
 				t.Error("No success! Expected success!")
 			}
-			if baEnabled != baShouldBe {
+			if ep.BaEnabled != ep.BaShouldBe {
 				t.Error("BA unexpected state!")
 			}
 			ts.Close()
 		}
-		for ep, baShouldBe := range site.Endpoints {
-			URL := fmt.Sprintf("%s/%s", site.Base, ep)
-			response, _ := http.Get(URL)
-			success, baEnabled := checkSuccess(response, baShouldBe)
-			if !success {
-				t.Logf("Tested URL: %s Response BA: %t Expected BA: %t", URL, response.StatusCode == 401, baShouldBe)
+		for _, ep := range site.endpoints {
+			response, _ := http.Get(ep.URL)
+			ep.Success, ep.BaEnabled = checkSuccess(response, ep.BaShouldBe)
+			if !ep.Success {
+				t.Logf("Tested URL: %s Response BA: %t Expected BA: %t", ep.URL, response.StatusCode == 401, ep.BaShouldBe)
 				t.Error("No success! Expected success!")
 			}
-			if baEnabled != baShouldBe {
+			if ep.BaEnabled != ep.BaShouldBe {
 				t.Error("BA unexpected state!")
 			}
 		}
@@ -88,16 +81,12 @@ func TestCheckSuccessFail(t *testing.T) {
 	}
 }
 
-func TestCheckEndpoint(t *testing.T) {
+func TestCheckURL(t *testing.T) {
 	sites := getTestSites()
 	for _, site := range sites {
-		for ep, baShouldBe := range site.Endpoints {
-			epType := endpoint{
-				BaShouldBe: baShouldBe,
-				Endpoint:   fmt.Sprintf("%s/%s", site.Base, ep),
-			}
-			checkEndpoint(&epType)
-			if !epType.Success {
+		for index := range site.endpoints {
+			checkURL(&site.endpoints[index])
+			if !site.endpoints[index].Success {
 				t.Errorf("Expected 'success' to be true, got false")
 			}
 		}
@@ -107,22 +96,23 @@ func TestCheckEndpoint(t *testing.T) {
 func TestGetMaxWidth(t *testing.T) {
 	tc := testCase{
 		sites:    getTestSites(),
-		maxWidth: 46,
+		maxWidth: 66,
 	}
+	populateURLConfig(tc.sites)
 	got := getMaxWidth(tc.sites)
 	if got != tc.maxWidth {
 		t.Errorf("Incorrect maxWidth %d, wanted %d", got, tc.maxWidth)
 	}
 }
 
-func TestNumberOfTotalEndpoints(t *testing.T) {
+func TestNumberOfTotalURL(t *testing.T) {
 	tc := testCase{
 		sites:      getTestSites(),
-		maxWidth:   46,
 		totalCount: 6,
 	}
-	got := numberOfTotalEndpoints(tc.sites)
+	populateURLConfig(tc.sites)
+	got := numberOfTotalURLs(tc.sites)
 	if got != tc.totalCount {
-		t.Errorf("Incorrect total endpoint count %d, wanted %d", got, tc.totalCount)
+		t.Errorf("Incorrect total URL count %d, wanted %d", got, tc.totalCount)
 	}
 }

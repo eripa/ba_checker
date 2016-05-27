@@ -161,20 +161,20 @@ func checkURL(ep *endpoint) {
 	ep.Success, ep.BaEnabled = checkSuccess(response, ep.BaShouldBe)
 }
 
-func populateURLConfig(config *configuration) {
-	for index := range config.Sites {
-		for _, baURL := range config.Sites[index].BasicAuth {
-			config.Sites[index].endpoints = append(config.Sites[index].endpoints,
+func populateURLConfig(sites []site) {
+	for index := range sites {
+		for _, baURL := range sites[index].BasicAuth {
+			sites[index].endpoints = append(sites[index].endpoints,
 				endpoint{
 					BaShouldBe: true,
-					URL:        fmt.Sprintf("%s/%s", config.Sites[index].Base, baURL),
+					URL:        fmt.Sprintf("%s/%s", sites[index].Base, baURL),
 				})
 		}
-		for _, URL := range config.Sites[index].NoBasicAuth {
-			config.Sites[index].endpoints = append(config.Sites[index].endpoints,
+		for _, URL := range sites[index].NoBasicAuth {
+			sites[index].endpoints = append(sites[index].endpoints,
 				endpoint{
 					BaShouldBe: false,
-					URL:        fmt.Sprintf("%s/%s", config.Sites[index].Base, URL),
+					URL:        fmt.Sprintf("%s/%s", sites[index].Base, URL),
 				})
 		}
 	}
@@ -200,7 +200,7 @@ func main() {
 			fmt.Println("Error:", err)
 			cli.Exit(1)
 		}
-		populateURLConfig(&config)
+		populateURLConfig(config.Sites)
 		checkSites(config.Sites, *noSpinner)
 		if anyLookUpfailed {
 			cli.Exit(1)

@@ -72,7 +72,7 @@ func numberOfTotalURLs(sites []site) (count int) {
 	return count
 }
 
-func checkSites(sites []site, nospinner bool) {
+func checkSites(sites []site) {
 	amountOfURLs := numberOfTotalURLs(sites)
 	endpointChan := make(chan *endpoint, amountOfURLs)
 	endpointDone := make(chan bool, amountOfURLs)
@@ -82,13 +82,6 @@ func checkSites(sites []site, nospinner bool) {
 		go endpointWorker(endpointChan, endpointDone)
 	}
 
-	maxWidth := getMaxWidth(sites)
-	s := spinner.New(spinner.CharSets[7], 100*time.Millisecond)
-	if !nospinner {
-		s.Prefix = "running tests"
-		s.Start()
-	}
-
 	for i := range sites {
 		checkSite(&sites[i], endpointChan)
 	}
@@ -96,15 +89,10 @@ func checkSites(sites []site, nospinner bool) {
 	for i := 0; i < amountOfURLs; i++ {
 		<-endpointDone // wait for one task to complete
 	}
-	if !nospinner {
-		s.Stop()
-	}
-	for _, site := range sites {
-		printResults(site, maxWidth)
-	}
+
 }
 
-func printResults(site site, maxWidth int) {
+func printSiteTable(site site, maxWidth int) {
 	fmt.Printf("%*s | %*s | %*s | %*s | HTTP Status\n%s-+-%s-+-%s-+-%s-+-%s\n", maxWidth, "URL", 10, "Basic Auth",
 		10, "Wanted BA", 10, "Success", strings.Repeat("-", maxWidth), strings.Repeat("-", 10),
 		strings.Repeat("-", 10), strings.Repeat("-", 10), strings.Repeat("-", 90-maxWidth-2))
@@ -130,6 +118,13 @@ func printResults(site site, maxWidth int) {
 	}
 	fmt.Printf("%s-+-%s-+-%s-+-%s-+-%s\n", strings.Repeat("-", maxWidth), strings.Repeat("-", 10),
 		strings.Repeat("-", 10), strings.Repeat("-", 10), strings.Repeat("-", 90-maxWidth-2))
+}
+
+func printResults(sites []site) {
+	maxWidth := getMaxWidth(sites)
+	for _, site := range sites {
+		printSiteTable(site, maxWidth)
+	}
 }
 
 func endpointWorker(endpointChan <-chan *endpoint, endpointDone chan bool) {
@@ -242,8 +237,18 @@ Status can be determined by Exit codes:
 			fmt.Println("Error:", err)
 			cli.Exit(1)
 		}
+		s := spinner.New(spinner.CharSets[7], 100*time.Millisecond)
+		if !*noSpinner {
+			s.Prefix = "running tests "
+			s.Start()
+		}
 		populateURLConfig(config.Sites)
-		checkSites(config.Sites, *noSpinner)
+		checkSites(config.Sites)
+
+		if !*noSpinner {
+			s.Stop()
+		}
+		printResults(config.Sites)
 		lookupStatusCode := checkStatus(config.Sites, *warningThreshold, *criticalThreshold)
 		if lookupStatusCode > 0 {
 			cli.Exit(lookupStatusCode)

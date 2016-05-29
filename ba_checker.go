@@ -13,10 +13,17 @@ import (
 	"github.com/jawher/mow.cli"
 )
 
-const toolVersion = "v0.7"
+const (
+	toolVersion = "v0.8-pre"
+)
 
 var (
-	anyLookUpfailed bool
+	lookUpStatusCodeMap = map[int]string{
+		0: "OK",
+		1: "WARNING",
+		2: "CRITICAL",
+		3: "UNKNOWN",
+	}
 )
 
 type configuration struct {
@@ -34,6 +41,7 @@ type endpoint struct {
 	URL            string
 	BaEnabled      bool
 	Success        bool
+	Unknown        bool
 	HTTPStatus     string
 	HTTPStatusCode int
 }
@@ -118,7 +126,6 @@ func printResults(site site, maxWidth int) {
 			} else {
 				fmt.Printf("%*s | %*s | %*s | %*t | %s\n", maxWidth, ep.URL, 10, baMessage, 10, baWantedMessage, 10, ep.Success, ep.HTTPStatus)
 			}
-			anyLookUpfailed = true
 		}
 	}
 	fmt.Printf("%s-+-%s-+-%s-+-%s-+-%s\n", strings.Repeat("-", maxWidth), strings.Repeat("-", 10),
@@ -138,11 +145,13 @@ func checkSite(site *site, endpointChan chan *endpoint) {
 	}
 }
 
-func checkSuccess(response *http.Response, baShouldBe bool) (success bool, baEnabled bool) {
+func checkSuccess(response *http.Response, baShouldBe bool) (success bool, baEnabled bool, unknown bool) {
 	if response.StatusCode == 401 {
 		baEnabled = true
+	} else if response.StatusCode > 401 {
+		unknown = true
 	}
-	return baEnabled == baShouldBe, baEnabled
+	return baEnabled == baShouldBe, baEnabled, unknown
 }
 
 func checkURL(ep *endpoint) {
@@ -158,7 +167,7 @@ func checkURL(ep *endpoint) {
 	}
 	ep.HTTPStatusCode = response.StatusCode
 	ep.HTTPStatus = response.Status
-	ep.Success, ep.BaEnabled = checkSuccess(response, ep.BaShouldBe)
+	ep.Success, ep.BaEnabled, ep.Unknown = checkSuccess(response, ep.BaShouldBe)
 }
 
 func populateURLConfig(sites []site) {
@@ -180,14 +189,47 @@ func populateURLConfig(sites []site) {
 	}
 }
 
+func checkStatus(sites []site, warningThreshold int, criticalThreshold int) (status int) {
+	failures := 0
+	unknowns := 0
+	for _, site := range sites {
+		for _, ep := range site.endpoints {
+			if !ep.Success {
+				failures++
+			}
+			if ep.Unknown {
+				unknowns++
+			}
+		}
+	}
+	switch {
+	case failures >= criticalThreshold:
+		return 2
+	case unknowns > 0:
+		return 3
+	case failures >= warningThreshold:
+		return 1
+	}
+	return
+}
+
 func main() {
-	app := cli.App("ba_checker", "Check HTTP Basic Auth status")
+	app := cli.App("ba_checker", `Check HTTP Basic Auth status
+
+Status can be determined by Exit codes:
+ 0=Status OK
+ 1=Above warning threshold
+ 2=Above critical threshold
+ 3=Unknown Basic Auth status (4xx or 5xx HTTP codes)`)
 	app.Version("v version", toolVersion)
-	app.Spec = "[--no-spinner] CONFIGFILE"
+	app.Spec = "[--warning=<number>] [--critical=<number>] [--no-spinner] CONFIGFILE"
 
 	var (
-		noSpinner  = app.BoolOpt("n no-spinner", false, "Disable spinner animation")
+		noSpinner  = app.BoolOpt("no-spinner", false, "Disable spinner animation")
 		configFile = app.StringArg("CONFIGFILE", "", "Config file")
+		// nagiosOutput      = app.BoolOpt("n nagios", false, "Show more simple Nagios style output")
+		warningThreshold  = app.IntOpt("w warning", 1, "Warning threshold")
+		criticalThreshold = app.IntOpt("c critical", 2, "Critical threshold")
 	)
 
 	app.Action = func() {
@@ -202,8 +244,9 @@ func main() {
 		}
 		populateURLConfig(config.Sites)
 		checkSites(config.Sites, *noSpinner)
-		if anyLookUpfailed {
-			cli.Exit(1)
+		lookupStatusCode := checkStatus(config.Sites, *warningThreshold, *criticalThreshold)
+		if lookupStatusCode > 0 {
+			cli.Exit(lookupStatusCode)
 		}
 	}
 

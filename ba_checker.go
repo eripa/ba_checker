@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	toolVersion = "v0.8-pre"
+	toolVersion = "v0.8"
 )
 
 var (
@@ -232,7 +232,7 @@ func checkStatus(sites []site, warningThreshold int, criticalThreshold int) (sta
 	switch {
 	case failures >= criticalThreshold:
 		return 2
-	case unknowns > 0:
+	case unknowns > 0 && failures != 0:
 		return 3
 	case failures >= warningThreshold:
 		return 1

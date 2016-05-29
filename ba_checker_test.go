@@ -41,7 +41,7 @@ func TestCheckSuccess(t *testing.T) {
 				}
 			}))
 			response, _ := http.Get(ts.URL)
-			ep.Success, ep.BaEnabled = checkSuccess(response, ep.BaShouldBe)
+			ep.Success, ep.BaEnabled, ep.Unknown = checkSuccess(response, ep.BaShouldBe)
 			if !ep.Success {
 				t.Error("No success! Expected success!")
 			}
@@ -52,7 +52,7 @@ func TestCheckSuccess(t *testing.T) {
 		}
 		for _, ep := range site.endpoints {
 			response, _ := http.Get(ep.URL)
-			ep.Success, ep.BaEnabled = checkSuccess(response, ep.BaShouldBe)
+			ep.Success, ep.BaEnabled, ep.Unknown = checkSuccess(response, ep.BaShouldBe)
 			if !ep.Success {
 				t.Logf("Tested URL: %s Response BA: %t Expected BA: %t", ep.URL, response.StatusCode == 401, ep.BaShouldBe)
 				t.Error("No success! Expected success!")
@@ -72,7 +72,7 @@ func TestCheckSuccessFail(t *testing.T) {
 	defer ts.Close()
 	baShouldBe := true
 	response, _ := http.Get(ts.URL)
-	success, baEnabled := checkSuccess(response, baShouldBe)
+	success, baEnabled, _ := checkSuccess(response, baShouldBe)
 	if success {
 		t.Error("Success?! Expected failure!")
 	}

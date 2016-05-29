@@ -93,9 +93,9 @@ func checkSites(sites []site) {
 
 }
 
-func printSitesTable(sites []site, warningThreshold int, criticalThreshold int) {
+func printSitesTable(sites []site, statusCode int) {
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetBorder(false)
+	table.SetBorders(tablewriter.Border{Left: false, Top: false, Right: false, Bottom: true})
 	table.SetAlignment(tablewriter.ALIGN_LEFT)
 	table.SetAutoFormatHeaders(false)
 	table.SetHeader([]string{"URL", "Basic Auth", "Wanted BA", "Success", "HTTP Status"})
@@ -124,11 +124,36 @@ func printSitesTable(sites []site, warningThreshold int, criticalThreshold int) 
 		}
 	}
 	table.Render()
-	fmt.Printf("\nStatus: %s\n", lookUpStatusCodeMap[checkStatus(sites, warningThreshold, criticalThreshold)])
+	fmt.Printf("\nStatus: %s\n", lookUpStatusCodeMap[statusCode])
 }
 
-func printResults(sites []site, warningThreshold int, criticalThreshold int) {
-	printSitesTable(sites, warningThreshold, criticalThreshold)
+func printNagiosResult(sites []site, statusCode int) {
+	totalURLs := numberOfTotalURLs(sites)
+	failures, unknowns := getTotalFailuresAndUnknowns(sites)
+	if unknowns > 0 {
+		fmt.Printf("BA check: %s - OK: %d/%d Unknowns: %d\n",
+			lookUpStatusCodeMap[statusCode],
+			totalURLs-(failures+unknowns),
+			totalURLs,
+			unknowns)
+	} else {
+		fmt.Printf("BA check: %s - OK: %d/%d\n",
+			lookUpStatusCodeMap[statusCode],
+			totalURLs-failures,
+			totalURLs)
+	}
+}
+
+func printResults(sites []site, outputFormat string, statusCode int) {
+	switch {
+	case outputFormat == "table":
+		printSitesTable(sites, statusCode)
+		return
+	case outputFormat == "nagios":
+		printNagiosResult(sites, statusCode)
+		return
+	}
+	fmt.Printf("Unkown output format: %s\n", outputFormat)
 }
 
 func endpointWorker(endpointChan <-chan *endpoint, endpointDone chan bool) {
@@ -188,9 +213,7 @@ func populateURLConfig(sites []site) {
 	}
 }
 
-func checkStatus(sites []site, warningThreshold int, criticalThreshold int) (status int) {
-	failures := 0
-	unknowns := 0
+func getTotalFailuresAndUnknowns(sites []site) (failures int, unknowns int) {
 	for _, site := range sites {
 		for _, ep := range site.endpoints {
 			if !ep.Success {
@@ -201,6 +224,11 @@ func checkStatus(sites []site, warningThreshold int, criticalThreshold int) (sta
 			}
 		}
 	}
+	return failures, unknowns
+}
+
+func checkStatus(sites []site, warningThreshold int, criticalThreshold int) (status int) {
+	failures, unknowns := getTotalFailuresAndUnknowns(sites)
 	switch {
 	case failures >= criticalThreshold:
 		return 2
@@ -221,12 +249,12 @@ Status can be determined by Exit codes:
  2=Above critical threshold
  3=Unknown Basic Auth status (4xx or 5xx HTTP codes)`)
 	app.Version("v version", toolVersion)
-	app.Spec = "[--warning=<number>] [--critical=<number>] [--no-spinner] CONFIGFILE"
+	app.Spec = "[--warning=<number>] [--critical=<number>] [--output=<table|nagios>] [--no-spinner] CONFIGFILE"
 
 	var (
-		noSpinner  = app.BoolOpt("no-spinner", false, "Disable spinner animation")
-		configFile = app.StringArg("CONFIGFILE", "", "Config file")
-		// nagiosOutput      = app.BoolOpt("n nagios", false, "Show more simple Nagios style output")
+		noSpinner         = app.BoolOpt("no-spinner", false, "Disable spinner animation")
+		configFile        = app.StringArg("CONFIGFILE", "", "Config file")
+		outputFormat      = app.StringOpt("o output", "table", "Output format, available formats: table, nagios")
 		warningThreshold  = app.IntOpt("w warning", 1, "Warning threshold")
 		criticalThreshold = app.IntOpt("c critical", 2, "Critical threshold")
 	)
@@ -252,8 +280,8 @@ Status can be determined by Exit codes:
 		if !*noSpinner {
 			s.Stop()
 		}
-		printResults(config.Sites, *warningThreshold, *criticalThreshold)
 		lookupStatusCode := checkStatus(config.Sites, *warningThreshold, *criticalThreshold)
+		printResults(config.Sites, *outputFormat, lookupStatusCode)
 		if lookupStatusCode > 0 {
 			cli.Exit(lookupStatusCode)
 		}

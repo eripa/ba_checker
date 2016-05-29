@@ -75,6 +75,14 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/mattn/go-runewidth",
+			"repository": "https://github.com/mattn/go-runewidth",
+			"vcs": "git",
+			"revision": "d6bea18f789704b5f83375793155289da36a3c7f",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/mkideal/pkg/debug",
 			"repository": "https://github.com/mkideal/pkg",
 			"vcs": "git",
@@ -99,6 +107,14 @@
 			"revision": "7e611df8fb4522e2e156f606e2e3a3a90d897322",
 			"branch": "master",
 			"path": "/version",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/olekukonko/tablewriter",
+			"repository": "https://github.com/olekukonko/tablewriter",
+			"vcs": "git",
+			"revision": "8d0265a48283795806b872b4728c67bf5c777f20",
+			"branch": "master",
 			"notests": true
 		},
 		{

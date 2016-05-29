@@ -5,12 +5,13 @@ import (
 	"net/http"
 	"os"
 	"sort"
-	"strings"
+	"strconv"
 	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/briandowns/spinner"
 	"github.com/jawher/mow.cli"
+	"github.com/olekukonko/tablewriter"
 )
 
 const (
@@ -92,39 +93,42 @@ func checkSites(sites []site) {
 
 }
 
-func printSiteTable(site site, maxWidth int) {
-	fmt.Printf("%*s | %*s | %*s | %*s | HTTP Status\n%s-+-%s-+-%s-+-%s-+-%s\n", maxWidth, "URL", 10, "Basic Auth",
-		10, "Wanted BA", 10, "Success", strings.Repeat("-", maxWidth), strings.Repeat("-", 10),
-		strings.Repeat("-", 10), strings.Repeat("-", 10), strings.Repeat("-", 90-maxWidth-2))
-	sort.Sort(endpointSorter(site.endpoints))
-	for _, ep := range site.endpoints {
-		baMessage := "no"
-		if ep.BaEnabled {
-			baMessage = "yes"
-		}
-		baWantedMessage := "no"
-		if ep.BaShouldBe {
-			baWantedMessage = "yes"
-		}
-		if ep.Success {
-			fmt.Printf("%*s | %*s | %*s | %*t | %s\n", maxWidth, ep.URL, 10, baMessage, 10, baWantedMessage, 10, ep.Success, ep.HTTPStatus)
-		} else {
-			if ep.HTTPStatusCode > 401 {
-				fmt.Printf("%*s | %*s | %*s | %*t | %s\n", maxWidth, ep.URL, 10, baMessage, 10, baWantedMessage, 10, ep.Success, ep.HTTPStatus)
-			} else {
-				fmt.Printf("%*s | %*s | %*s | %*t | %s\n", maxWidth, ep.URL, 10, baMessage, 10, baWantedMessage, 10, ep.Success, ep.HTTPStatus)
+func printSitesTable(sites []site, warningThreshold int, criticalThreshold int) {
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetBorder(false)
+	table.SetAlignment(tablewriter.ALIGN_LEFT)
+	table.SetAutoFormatHeaders(false)
+	table.SetHeader([]string{"URL", "Basic Auth", "Wanted BA", "Success", "HTTP Status"})
+	for _, site := range sites {
+		sort.Sort(endpointSorter(site.endpoints))
+		for _, ep := range site.endpoints {
+			baMessage := "no"
+			baWantedMessage := "no"
+			if ep.BaEnabled {
+				baMessage = "yes"
 			}
+			if ep.Unknown {
+				baMessage = "unknown"
+			}
+			if ep.BaShouldBe {
+				baWantedMessage = "yes"
+			}
+			data := []string{
+				ep.URL,
+				baMessage,
+				baWantedMessage,
+				strconv.FormatBool(ep.Success),
+				ep.HTTPStatus,
+			}
+			table.Append(data)
 		}
 	}
-	fmt.Printf("%s-+-%s-+-%s-+-%s-+-%s\n", strings.Repeat("-", maxWidth), strings.Repeat("-", 10),
-		strings.Repeat("-", 10), strings.Repeat("-", 10), strings.Repeat("-", 90-maxWidth-2))
+	table.Render()
+	fmt.Printf("\nStatus: %s\n", lookUpStatusCodeMap[checkStatus(sites, warningThreshold, criticalThreshold)])
 }
 
-func printResults(sites []site) {
-	maxWidth := getMaxWidth(sites)
-	for _, site := range sites {
-		printSiteTable(site, maxWidth)
-	}
+func printResults(sites []site, warningThreshold int, criticalThreshold int) {
+	printSitesTable(sites, warningThreshold, criticalThreshold)
 }
 
 func endpointWorker(endpointChan <-chan *endpoint, endpointDone chan bool) {
@@ -248,7 +252,7 @@ Status can be determined by Exit codes:
 		if !*noSpinner {
 			s.Stop()
 		}
-		printResults(config.Sites)
+		printResults(config.Sites, *warningThreshold, *criticalThreshold)
 		lookupStatusCode := checkStatus(config.Sites, *warningThreshold, *criticalThreshold)
 		if lookupStatusCode > 0 {
 			cli.Exit(lookupStatusCode)

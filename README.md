@@ -12,7 +12,7 @@ Tool to verify Basic Auth status of multiple given endpoints, via TOML configura
     ba_checker --no-spinner config.toml
 
 
-If any check results in `false` in the success column, the tool will exit with 1.
+If any check results in `false` in the success column, the tool will exit with 1, 2 or 3 depending on the severity (define with --warning/--critical).
 
 ### Usage
 
@@ -56,7 +56,7 @@ If any check results in `false` in the success column, the tool will exit with 1
     echo $?
     0
 
-### Critical set to 1, threshold 1
+### Critical threshold set to 1
 
     ba_checker --critical 1 --no-spinner config-example.toml
                           URL                      | Basic Auth | Wanted BA | Success |        HTTP Status
@@ -74,7 +74,7 @@ If any check results in `false` in the success column, the tool will exit with 1
     echo $?
     2
 
-### Warning unset, default is 1. Nagios output format
+### Thresholds unset, default Warning threshold is 1. Nagios output format
 
     ba_checker --no-spinner --output nagios config-example.toml
     BA check: WARNING - OK: 5/6

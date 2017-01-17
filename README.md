@@ -111,4 +111,8 @@ no_auth = [
 
 # License
 
-MIT license, see LICENSE file for full details
+BSD 2-Clause License
+
+Copyright (c) 2016, Eric Ripa <eric@ripa.io>
+
+see [LICENSE](LICENSE) file for full details
